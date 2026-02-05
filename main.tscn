@@ -18,6 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 1
 color = Color(0, 0, 0, 1)
 
 [node name="Tabs" type="TabContainer" parent="."]
@@ -27,8 +28,13 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+offset_left = 14.0
+offset_top = 14.0
+offset_right = -14.0
+offset_bottom = -14.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
+theme_override_font_sizes/font_size = 20
 current_tab = 0
 
 [node name="GAME" type="Control" parent="Tabs"]
@@ -53,6 +59,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
 theme_override_colors/default_color = Color(0.78, 0.32, 0.9, 1)
+theme_override_font_sizes/normal_font_size = 26
 bbcode_enabled = true
 text = "[center][b]Text-Only Adventure[/b][/center]"
 fit_content = true
@@ -75,24 +82,31 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_colors/default_color = Color(0.78, 0.32, 0.9, 1)
+theme_override_font_sizes/normal_font_size = 19
 bbcode_enabled = true
 text = ""
 scroll_active = true
 scroll_following = true
 
-[node name="Input" type="TextEdit" parent="Tabs/GAME/GameLayout/GameSplit/GamePanel"]
+[node name="Input" type="LineEdit" parent="Tabs/GAME/GameLayout/GameSplit/GamePanel"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
+focus_mode = 2
 theme_override_colors/background_color = Color(0, 0, 0, 1)
 theme_override_colors/font_placeholder_color = Color(0.62, 0.2, 0.78, 1)
 theme_override_colors/font_color = Color(0.78, 0.32, 0.9, 1)
+theme_override_font_sizes/font_size = 20
 placeholder_text = "Type your command here..."
+caret_blink = true
+clear_button_enabled = true
 
 [node name="Submit" type="Button" parent="Tabs/GAME/GameLayout/GameSplit/GamePanel"]
 layout_mode = 2
 size_flags_horizontal = 3
+focus_mode = 2
 theme_override_colors/font_color = Color(0.78, 0.32, 0.9, 1)
+theme_override_font_sizes/font_size = 20
 text = "Send"
 flat = true
 
@@ -106,10 +120,11 @@ theme_override_constants/separation = 8
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.78, 0.32, 0.9, 1)
+theme_override_font_sizes/font_size = 22
 text = "Life Log"
 
 [node name="LifeLogScroll" type="ScrollContainer" parent="Tabs/GAME/GameLayout/GameSplit/LifeLogPanel"]
-custom_minimum_size = Vector2(0, 200)
+custom_minimum_size = Vector2(0, 220)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -124,11 +139,17 @@ theme_override_constants/separation = 6
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.78, 0.32, 0.9, 1)
+theme_override_font_sizes/font_size = 18
 text = "No entries yet."
 
 [node name="STATS" type="Control" parent="Tabs"]
 visible = false
-layout_mode = 2
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 metadata/_tab_index = 1
@@ -143,12 +164,19 @@ offset_top = 24.0
 offset_right = -24.0
 offset_bottom = -24.0
 grow_horizontal = 2
+grow_vertical = 2
 theme_override_colors/font_color = Color(0.78, 0.32, 0.9, 1)
+theme_override_font_sizes/font_size = 20
 text = "Stats will appear here."
 
 [node name="PvP" type="Control" parent="Tabs"]
 visible = false
-layout_mode = 2
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 metadata/_tab_index = 2
@@ -163,7 +191,10 @@ offset_top = 24.0
 offset_right = -24.0
 offset_bottom = -24.0
 grow_horizontal = 2
+grow_vertical = 2
 theme_override_colors/font_color = Color(0.78, 0.32, 0.9, 1)
+theme_override_font_sizes/font_size = 20
 text = "PvP unavailable."
 
 [connection signal="pressed" from="Tabs/GAME/GameLayout/GameSplit/GamePanel/Submit" to="." method="_on_submit_pressed"]
+[connection signal="text_submitted" from="Tabs/GAME/GameLayout/GameSplit/GamePanel/Input" to="." method="_on_input_text_submitted"]
