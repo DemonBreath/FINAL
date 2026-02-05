@@ -1,6 +1,8 @@
 extends RefCounted
 class_name StatsPanel
 
+var dna_engine: DNAEngine = DNAEngine.new()
+
 const STAT_LABELS: Dictionary = {
 	"strength": "Strength",
 	"intellect": "Intellect",
@@ -21,7 +23,9 @@ func render(state: Dictionary) -> String:
 		lines.append("%s: %d" % [str(STAT_LABELS.get(str(key), str(key))), int(stat_values.get(str(key), 0))])
 	lines.append("")
 	lines.append("[b]Conditions (diseases/superpowers)[/b]")
-	var conditions: Array = state.get("conditions", [])
+	var conditions: Array[String] = []
+	for condition_value: Variant in state.get("conditions", []):
+		conditions.append(str(condition_value))
 	if conditions.is_empty():
 		lines.append("[color=#ff4a4a]None[/color]")
 	else:
@@ -32,12 +36,7 @@ func render(state: Dictionary) -> String:
 	var incoming: Variant = state.get("dna_bits", PackedInt32Array())
 	if incoming is PackedInt32Array:
 		bits = incoming
-	lines.append("[b]DNA bits[/b]: %s" % _bits_to_string(bits))
+	lines.append("[b]DNA bits[/b]: %s" % dna_engine.get_dna_string(bits))
 	lines.append("[b]Mutated indices[/b]: %s" % str(state.get("mutated_bit_indices", [])))
 	return "\n".join(lines)
 
-func _bits_to_string(bits: PackedInt32Array) -> String:
-	var out: String = ""
-	for bit: int in bits:
-		out += str(bit)
-	return out
