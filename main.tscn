@@ -76,8 +76,8 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_colors/default_color = Color(0.78, 0.32, 0.9, 1)
 bbcode_enabled = true
-text = "You wake in a quiet void.
-> Type a command to begin."
+text = ""
+scroll_active = true
 scroll_following = true
 
 [node name="Input" type="TextEdit" parent="Tabs/GAME/GameLayout/GameSplit/GamePanel"]
