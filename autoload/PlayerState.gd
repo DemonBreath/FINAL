@@ -162,13 +162,20 @@ func _contract_condition(condition_name: String) -> void:
 		return
 	conditions.append(condition_name)
 	player_state["conditions"] = conditions
-	var mutation: Dictionary = dna_engine.mutate_bit(str(player_state.get("dna_bits", "")), player_state.get("mutated_bit_indices", []), int(player_state.get("seed", 0)), condition_name)
+	var mutation: Dictionary = dna_engine.mutate_bit(str(player_state.get("dna_bits", "")), _get_mutated_indices(), int(player_state.get("seed", 0)), condition_name)
 	player_state["dna_bits"] = mutation.get("dna_bits", player_state.get("dna_bits", ""))
 	var idx: int = int(mutation.get("index", -1))
 	if idx >= 0:
-		var mutated: Array = player_state.get("mutated_bit_indices", [])
+		var mutated: Array[int] = _get_mutated_indices()
 		mutated.append(idx)
 		player_state["mutated_bit_indices"] = mutated
+
+
+func _get_mutated_indices() -> Array[int]:
+	var typed: Array[int] = []
+	for value: Variant in player_state.get("mutated_bit_indices", []):
+		typed.append(int(value))
+	return typed
 
 func _generate_stats(rng: RandomNumberGenerator) -> Dictionary:
 	var stats: Dictionary = {}
@@ -203,11 +210,16 @@ func _normalize_state(raw: Dictionary) -> Dictionary:
 		"starting_stats": raw.get("starting_stats", {}).duplicate(true),
 		"conditions": raw.get("conditions", []).duplicate(true),
 		"dna_bits": str(raw.get("dna_bits", "")),
-		"mutated_bit_indices": raw.get("mutated_bit_indices", []).duplicate(true),
+		"mutated_bit_indices": [],
 		"life_log": raw.get("life_log", []).duplicate(true),
 		"used_text_hashes": raw.get("used_text_hashes", []).duplicate(true),
 		"dead": bool(raw.get("dead", false)),
 	}
+	var raw_mutated: Array = raw.get("mutated_bit_indices", [])
+	var typed_mutated: Array[int] = []
+	for value: Variant in raw_mutated:
+		typed_mutated.append(int(value))
+	normalized["mutated_bit_indices"] = typed_mutated
 	if normalized["starting_stats"].is_empty():
 		normalized["starting_stats"] = normalized["stats"].duplicate(true)
 	return normalized

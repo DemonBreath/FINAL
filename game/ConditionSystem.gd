@@ -12,11 +12,11 @@ const DEFINITIONS := {
 func roll_new_condition(seed: int, turn: int, command: String, existing: Array) -> String:
 	if turn < 2:
 		return ""
-	var roll := abs(int(hash("cond:%d:%d:%s" % [seed, turn, command.to_lower()]))) % 100
+	var roll: int = abs(int(hash("cond:%d:%d:%s" % [seed, turn, command.to_lower()]))) % 100
 	if roll > 6:
 		return ""
-	var names := DEFINITIONS.keys()
-	var idx := abs(int(hash("pick:%d:%d" % [seed, turn]))) % names.size()
+	var names: Array = DEFINITIONS.keys()
+	var idx: int = abs(int(hash("pick:%d:%d" % [seed, turn]))) % names.size()
 	for offset in range(names.size()):
 		var candidate: String = names[(idx + offset) % names.size()]
 		if not existing.has(candidate):
@@ -24,7 +24,7 @@ func roll_new_condition(seed: int, turn: int, command: String, existing: Array) 
 	return ""
 
 func apply_condition_effects(stats: Dictionary, conditions: Array) -> Dictionary:
-	var result := stats.duplicate(true)
+	var result: Dictionary = stats.duplicate(true)
 	for name in conditions:
 		var definition: Dictionary = DEFINITIONS.get(str(name), {})
 		var mods: Dictionary = definition.get("mods", {})
@@ -35,5 +35,5 @@ func apply_condition_effects(stats: Dictionary, conditions: Array) -> Dictionary
 func tone_from_conditions(conditions: Array) -> String:
 	if conditions.is_empty():
 		return "neutral"
-	var latest := str(conditions[conditions.size() - 1])
+	var latest: String = str(conditions[conditions.size() - 1])
 	return DEFINITIONS.get(latest, {}).get("tone", "neutral")

@@ -14,10 +14,10 @@ func opening(seed: int, username: String, used_hashes: Array) -> String:
 	return _unique_text(seed, 0, username, used_hashes, OPENING_A, OPENING_B, OPENING_C, true)
 
 func response(seed: int, turn: int, command: String, tone: String, used_hashes: Array) -> Dictionary:
-	var lead := _pick(RESP_A, "lead", seed, turn, command)
-	var bridge := _pick(RESP_B, "bridge", seed, turn, command)
-	var close := _pick(RESP_C, "close", seed, turn, command)
-	var tone_clause := ""
+	var lead: String = _pick(RESP_A, "lead", seed, turn, command)
+	var bridge: String = _pick(RESP_B, "bridge", seed, turn, command)
+	var close: String = _pick(RESP_C, "close", seed, turn, command)
+	var tone_clause: String = ""
 	match tone:
 		"predatory": tone_clause = " Hunger sharpens every sound"
 		"fractured": tone_clause = " Reflections split into impossible angles"
@@ -25,21 +25,21 @@ func response(seed: int, turn: int, command: String, tone: String, used_hashes: 
 		"resonant": tone_clause = " Your breathing carries like a drum"
 		"paranoid": tone_clause = " Every shadow appears to react"
 		_: tone_clause = ""
-	var text := "Turn %d: %s %s \"%s\", %s.%s" % [turn, lead, bridge, command, close, tone_clause]
+	var text: String = "Turn %d: %s %s \"%s\", %s.%s" % [turn, lead, bridge, command, close, tone_clause]
 	text = _enforce_unique(text, seed, turn, used_hashes)
-	var prompt := _unique_prompt(seed, turn, used_hashes)
+	var prompt: String = _unique_prompt(seed, turn, used_hashes)
 	return {"narrative": text, "prompt": prompt}
 
 func _unique_text(seed: int, turn: int, key: String, used_hashes: Array, a: Array, b: Array, c: Array, opening_mode: bool = false) -> String:
-	var variant := 0
+	var variant: int = 0
 	while variant < 128:
-		var part_a := _pick(a, "a", seed, turn + variant, key)
-		var part_b := _pick(b, "b", seed, turn + variant, key)
-		var part_c := _pick(c, "c", seed, turn + variant, key)
-		var text := "You surface in %s %s. %s" % [part_a, part_b, part_c]
+		var part_a: String = _pick(a, "a", seed, turn + variant, key)
+		var part_b: String = _pick(b, "b", seed, turn + variant, key)
+		var part_c: String = _pick(c, "c", seed, turn + variant, key)
+		var text: String = "You surface in %s %s. %s" % [part_a, part_b, part_c]
 		if opening_mode:
 			text += ""
-		var h := str(hash(text))
+		var h: String = str(hash(text))
 		if not used_hashes.has(h):
 			used_hashes.append(h)
 			return text
@@ -47,11 +47,11 @@ func _unique_text(seed: int, turn: int, key: String, used_hashes: Array, a: Arra
 	return "You wake in another unrepeated corner of the city."
 
 func _unique_prompt(seed: int, turn: int, used_hashes: Array) -> String:
-	var i := 0
+	var i: int = 0
 	while i < 32:
-		var prompt := _pick(PROMPTS, "prompt", seed, turn + i, str(i))
-		var tagged := "%s [%d]" % [prompt, turn + i]
-		var h := str(hash(tagged))
+		var prompt: String = _pick(PROMPTS, "prompt", seed, turn + i, str(i))
+		var tagged: String = "%s [%d]" % [prompt, turn + i]
+		var h: String = str(hash(tagged))
 		if not used_hashes.has(h):
 			used_hashes.append(h)
 			return tagged
@@ -59,10 +59,10 @@ func _unique_prompt(seed: int, turn: int, used_hashes: Array) -> String:
 	return "What now?"
 
 func _enforce_unique(text: String, seed: int, turn: int, used_hashes: Array) -> String:
-	var i := 0
-	var candidate := text
+	var i: int = 0
+	var candidate: String = text
 	while i < 64:
-		var h := str(hash(candidate))
+		var h: String = str(hash(candidate))
 		if not used_hashes.has(h):
 			used_hashes.append(h)
 			return candidate
@@ -73,5 +73,5 @@ func _enforce_unique(text: String, seed: int, turn: int, used_hashes: Array) -> 
 func _pick(source: Array, tag: String, seed: int, turn: int, key: String) -> String:
 	if source.is_empty():
 		return ""
-	var idx := abs(int(hash("%s:%d:%d:%s" % [tag, seed, turn, key]))) % source.size()
+	var idx: int = abs(int(hash("%s:%d:%d:%s" % [tag, seed, turn, key]))) % source.size()
 	return str(source[idx])
