@@ -65,7 +65,7 @@ mouse_filter = 2
 theme_override_colors/default_color = Color(0.78, 0.32, 0.9, 1)
 theme_override_font_sizes/normal_font_size = 26
 bbcode_enabled = true
-text = "[center][b]Text-Only Adventure[/b][/center]"
+text = "[center][b]INTAKE[/b][/center]"
 fit_content = true
 scroll_active = false
 

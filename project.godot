@@ -17,7 +17,8 @@ config/features=PackedStringArray("4.4")
 
 [autoload]
 
-PlayerState="*res://player_state.gd"
+SaveManager="*res://autoload/SaveManager.gd"
+PlayerState="*res://autoload/PlayerState.gd"
 
 [display]
 

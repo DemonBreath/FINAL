@@ -5,32 +5,105 @@ extends Control
 @onready var life_log_content: VBoxContainer = $Tabs/GAME/GameLayout/GameSplit/LifeLogPanel/LifeLogScroll/LifeLogContent
 @onready var life_log_placeholder: Label = $Tabs/GAME/GameLayout/GameSplit/LifeLogPanel/LifeLogScroll/LifeLogContent/LifeLogPlaceholder
 @onready var stats_output: RichTextLabel = $Tabs/STATS/StatsOutput
+@onready var tabs: TabContainer = $Tabs
 
-const START_SCENARIOS: Array[String] = [
-	"You wake in a public clinic recovery bay with your name missing from the intake ledger.",
-	"Dawn breaks over a freight yard where you are already late for a shift you do not remember accepting.",
-	"A storm siren ends as you open your eyes inside a maintenance tunnel with one working flashlight.",
-	"You arrive at a licensing office holding incomplete forms for a profession you have never trained for.",
-	"At first light, an automated evaluator reports your stress index as critical and requests immediate compliance.",
-	"You regain consciousness in a rented capsule apartment while debt reminders queue on the wall display.",
-]
+var helix_renderer := HelixRenderer.new()
+var stats_panel := StatsPanel.new()
+var life_log_panel := LifeLogPanel.new()
 
-const STAT_NOTIFICATIONS := {
-	"strength": "Strength",
-	"intellect": "Intellect",
-	"perception": "Perception",
-	"stress": "Stress",
-	"endurance": "Endurance",
-}
-
-var available_openings: Array[String] = []
+var helix_game: RichTextLabel
+var helix_stats: RichTextLabel
+var splash_layer: ColorRect
+var splash_helix: RichTextLabel
+var helix_frame := 0
 
 func _ready() -> void:
 	_configure_input_behavior(self)
-	available_openings = START_SCENARIOS.duplicate()
-	available_openings.shuffle()
+	_install_helix_ui()
 	_start_or_resume_life()
+	var timer := Timer.new()
+	timer.wait_time = 0.28
+	timer.autostart = true
+	timer.one_shot = false
+	add_child(timer)
+	timer.timeout.connect(_tick_helix)
 	call_deferred("_focus_main_input")
+
+func _start_or_resume_life() -> void:
+	var username := _resolve_username()
+	var result := PlayerState.start_or_resume(username)
+	output.clear()
+	if bool(result.get("loaded", false)):
+		output.append_text("Welcome back, %s.\nResuming turn %d.\n" % [result.get("username", username), int(PlayerState.get_state().get("turn", 0))])
+	else:
+		output.append_text("%s\n" % PlayerState.current_opening_text())
+	_refresh_all_panels()
+
+func _resolve_username() -> String:
+	var user := OS.get_environment("INTAKE_USERNAME").strip_edges()
+	if user.is_empty():
+		user = OS.get_environment("USER").strip_edges()
+	if user.is_empty():
+		user = OS.get_environment("USERNAME").strip_edges()
+	if user.is_empty():
+		user = "Player"
+	return user
+
+func _submit_current_input() -> void:
+	if PlayerState.get_state().is_empty():
+		return
+	if bool(PlayerState.get_state().get("dead", false)):
+		input.clear()
+		_focus_main_input()
+		return
+	var command := input.text.strip_edges()
+	output.append_text("\n> %s" % (command if not command.is_empty() else "..."))
+	var result := PlayerState.resolve_turn(command)
+	output.append_text("\n%s" % str(result.get("narrative", "")))
+	output.append_text("\n%s" % str(result.get("stat_line", "")))
+	if not str(result.get("condition", "")).is_empty():
+		output.append_text("\n[color=#ff4a4a]Condition contracted: %s[/color]" % result.get("condition", ""))
+	output.append_text("\n%s" % str(result.get("prompt", "What next?")))
+	if PlayerState.is_dead():
+		PlayerState.kill_current_life("System collapse. This life is permanently over.")
+		output.append_text("\n\n[b]You died. This identity is permanently closed.[/b]")
+	_refresh_all_panels()
+	input.clear()
+	_focus_main_input()
+
+func _refresh_all_panels() -> void:
+	_refresh_life_log()
+	stats_output.text = stats_panel.render(PlayerState.get_state())
+	_render_helix()
+
+func _refresh_life_log() -> void:
+	for child in life_log_content.get_children():
+		if child != life_log_placeholder:
+			child.queue_free()
+	var entries: Array = life_log_panel.build_entries(PlayerState.get_state().get("life_log", []))
+	life_log_placeholder.visible = entries.is_empty()
+	for line in entries:
+		var label := Label.new()
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.text = line
+		life_log_content.add_child(label)
+
+func _render_helix() -> void:
+	var state := PlayerState.get_state()
+	var helix := helix_renderer.render(str(state.get("dna_bits", "")), state.get("mutated_bit_indices", []), helix_frame)
+	helix_game.text = helix
+	helix_stats.text = helix
+	splash_helix.text = helix
+
+func _tick_helix() -> void:
+	helix_frame = (helix_frame + 1) % 99999
+	_render_helix()
+
+func _on_submit_pressed() -> void:
+	_submit_current_input()
+
+func _on_input_text_submitted(_new_text: String) -> void:
+	_submit_current_input()
 
 func _focus_main_input() -> void:
 	input.grab_focus()
@@ -40,167 +113,71 @@ func _configure_input_behavior(root: Node) -> void:
 	if root is Container or root is ColorRect or (root is Control and not _is_interactive_control(root)):
 		(root as Control).mouse_filter = Control.MOUSE_FILTER_PASS
 		(root as Control).focus_mode = Control.FOCUS_NONE
-
 	if root is TabContainer or root is BaseButton or root is LineEdit:
 		(root as Control).mouse_filter = Control.MOUSE_FILTER_STOP
 		(root as Control).focus_mode = Control.FOCUS_ALL
-
-	for child: Node in root.get_children():
+	for child in root.get_children():
 		_configure_input_behavior(child)
 
 func _is_interactive_control(node: Node) -> bool:
 	return node is TabContainer or node is BaseButton or node is LineEdit
 
-func _on_submit_pressed() -> void:
-	_submit_current_input()
+func _install_helix_ui() -> void:
+	helix_game = RichTextLabel.new()
+	helix_game.bbcode_enabled = true
+	helix_game.scroll_active = false
+	helix_game.fit_content = true
+	$Tabs/GAME/GameLayout.add_child(helix_game)
+	$Tabs/GAME/GameLayout.move_child(helix_game, 1)
 
-func _on_input_text_submitted(_new_text: String) -> void:
-	_submit_current_input()
+	helix_stats = RichTextLabel.new()
+	helix_stats.bbcode_enabled = true
+	helix_stats.scroll_active = true
+	helix_stats.custom_minimum_size = Vector2(0, 240)
+	$Tabs/STATS.add_child(helix_stats)
+	$Tabs/STATS.move_child(helix_stats, 0)
 
-func _submit_current_input() -> void:
-	var command := input.text.strip_edges()
-	if command.is_empty():
+	splash_layer = ColorRect.new()
+	splash_layer.color = Color(0, 0, 0, 0.92)
+	splash_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	splash_layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(splash_layer)
+
+	var title := Label.new()
+	title.text = "INTAKE"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	title.offset_top = 24
+	title.offset_bottom = 100
+	title.add_theme_font_size_override("font_size", 46)
+	title.add_theme_color_override("font_color", Color(0.78, 0.32, 0.9, 1))
+	splash_layer.add_child(title)
+
+	splash_helix = RichTextLabel.new()
+	splash_helix.bbcode_enabled = true
+	splash_helix.set_anchors_preset(Control.PRESET_CENTER)
+	splash_helix.custom_minimum_size = Vector2(540, 300)
+	splash_layer.add_child(splash_helix)
+
+	var click_note := Label.new()
+	click_note.text = "Tap / click to begin"
+	click_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	click_note.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	click_note.offset_top = -60
+	click_note.offset_bottom = -20
+	click_note.add_theme_color_override("font_color", Color(0.78, 0.32, 0.9, 1))
+	splash_layer.add_child(click_note)
+
+	splash_layer.gui_input.connect(_on_splash_input)
+	tabs.visible = false
+
+func _on_splash_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		splash_layer.hide()
+		tabs.visible = true
 		_focus_main_input()
-		return
-
-	output.append_text("\n> %s" % command)
-	_process_player_action(command)
-	input.clear()
-	_focus_main_input()
-
-func _start_or_resume_life() -> void:
-	var username := _resolve_username()
-	var loaded_existing := PlayerState.start_or_resume(username)
-	output.clear()
-	if loaded_existing:
-		var state := PlayerState.get_state()
-		output.append_text("Welcome back, %s.\nResuming turn %d.\n\nEnter your next command." % [state.get("username", username), int(state.get("turn", 0))])
-	else:
-		_start_new_life_narrative()
-	_refresh_life_log_from_state()
-	_update_stats_panel()
-
-func _resolve_username() -> String:
-	var env_user := OS.get_environment("INTAKE_USERNAME").strip_edges()
-	if env_user.is_empty():
-		env_user = OS.get_environment("USER").strip_edges()
-	if env_user.is_empty():
-		env_user = OS.get_environment("USERNAME").strip_edges()
-	if env_user.is_empty():
-		env_user = "Player"
-	return env_user
-
-func _start_new_life_narrative() -> void:
-	if available_openings.is_empty():
-		available_openings = START_SCENARIOS.duplicate()
-		available_openings.shuffle()
-	var opening: String = available_openings.pop_back()
-	output.append_text("%s\n\nEnter a command to take your first action." % opening)
-
-func _refresh_life_log_from_state() -> void:
-	for child: Node in life_log_content.get_children():
-		if child != life_log_placeholder:
-			child.queue_free()
-	var entries: Array = PlayerState.get_state().get("life_log", [])
-	life_log_placeholder.visible = entries.is_empty()
-	for entry in entries:
-		if entry is Dictionary:
-			var label := Label.new()
-			label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			label.text = "Turn %d [%s]: %s" % [int(entry.get("turn", 0)), str(entry.get("type", "log")), str(entry.get("text", ""))]
-			life_log_content.add_child(label)
-
-func _process_player_action(command: String) -> void:
-	var turn := PlayerState.advance_turn()
-	var normalized := command.to_lower()
-	var stat_update_line := ""
-	var narrative := _build_turn_narrative(command, turn)
-
-	if normalized.contains("walk"):
-		stat_update_line = _apply_stat_delta("endurance", 1)
-	elif normalized.contains("study") or normalized.contains("read"):
-		stat_update_line = _apply_stat_delta("intellect", 1)
-	elif normalized.contains("observe") or normalized.contains("search"):
-		stat_update_line = _apply_stat_delta("perception", 1)
-	elif normalized.contains("rest") or normalized.contains("recover"):
-		stat_update_line = _apply_stat_delta("stress", -1)
-	elif normalized.contains("panic"):
-		stat_update_line = _apply_stat_delta("stress", 2)
-	else:
-		stat_update_line = "You commit to the action and adjust your footing for what comes next."
-
-	_run_post_turn_mutations(turn, command)
-
-	output.append_text("\n%s" % narrative)
-	output.append_text("\n%s" % stat_update_line)
-	output.append_text("\n[Next command?]")
-
-	PlayerState.add_life_log_entry("turn", narrative, {"command": command})
-	PlayerState.save_current_state()
-	_refresh_life_log_from_state()
-	_update_stats_panel()
-
-	if _is_dead():
-		_handle_death_and_rebirth()
-
-func _run_post_turn_mutations(turn: int, command: String) -> void:
-	if turn % 5 != 0:
-		return
-	var condition_name := "Mutation Echo %d" % turn
-	var mutated_index := PlayerState.contract_condition(condition_name)
-	if mutated_index >= 0:
-		PlayerState.add_life_log_entry("condition", "Contracted %s (DNA bit %d mutated)." % [condition_name, mutated_index], {"bit_index": mutated_index, "trigger": command})
-
-func _apply_stat_delta(stat_key: String, amount: int) -> String:
-	var current_value := PlayerState.apply_stat_delta(stat_key, amount)
-	var human_name: String = STAT_NOTIFICATIONS.get(stat_key, stat_key.capitalize())
-	var direction := "increased" if amount > 0 else "decreased"
-	PlayerState.add_life_log_entry("stat", "%s %s to %d." % [human_name, direction, current_value], {"delta": amount})
-	return "%s %s to %d." % [human_name, direction, current_value]
-
-func _build_turn_narrative(command: String, turn: int) -> String:
-	var state := PlayerState.get_state()
-	var stress := int(state.get("stats", {}).get("stress", 0))
-	var mood := "The city hums in warning tones"
-	if stress <= 2:
-		mood = "The alarms settle into a low mechanical heartbeat"
-	elif stress >= 8:
-		mood = "Static crawls over your skin as pressure mounts"
-	return "Turn %d: %s after you '%s'." % [turn, mood, command]
-
-func _is_dead() -> bool:
-	var stats: Dictionary = PlayerState.get_state().get("stats", {})
-	return int(stats.get("endurance", 1)) <= 0 or int(stats.get("stress", 0)) >= 12
-
-func _handle_death_and_rebirth() -> void:
-	output.append_text("\n\n[b]You die in this timeline.[/b]\nA new life is generated immediately.")
-	PlayerState.clear_current_life()
-	PlayerState.start_new_life(_resolve_username())
-	_start_new_life_narrative()
-	PlayerState.save_current_state()
-	_refresh_life_log_from_state()
-	_update_stats_panel()
-
-func _update_stats_panel() -> void:
-	var state := PlayerState.get_state()
-	var lines: Array[String] = []
-	lines.append("[b]Username[/b]: %s" % str(state.get("username", "Player")))
-	lines.append("[b]Seed[/b]: %d" % int(state.get("seed", 0)))
-	lines.append("[b]Turn[/b]: %d" % int(state.get("turn", 0)))
-	lines.append("")
-	lines.append("[b]Stats[/b]")
-	var stats: Dictionary = state.get("stats", {})
-	for stat_key: String in STAT_NOTIFICATIONS.keys():
-		lines.append("%s: %d" % [STAT_NOTIFICATIONS[stat_key], int(stats.get(stat_key, 0))])
-	lines.append("")
-	lines.append("[b]Conditions[/b]")
-	var conditions: Array = state.get("conditions", [])
-	if conditions.is_empty():
-		lines.append("[color=#ff4a4a]None[/color]")
-	else:
-		for condition in conditions:
-			lines.append("[color=#ff4a4a]%s[/color]" % str(condition))
-	lines.append("")
-	lines.append("[b]DNA bits[/b]: %s" % str(state.get("dna_bits", "")))
-	lines.append("[b]Mutated bit indices[/b]: %s" % str(PlayerState.get_mutated_indices()))
-	stats_output.text = "\n".join(lines)
+	elif event is InputEventScreenTouch and event.pressed:
+		splash_layer.hide()
+		tabs.visible = true
+		_focus_main_input()
