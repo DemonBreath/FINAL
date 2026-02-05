@@ -1,70 +1,71 @@
 [gd_scene load_steps=2 format=3 uid="uid://b3x4l4f4d0srd"]
 
-[ext_resource type="Script" path="res://main.gd" id="1_mqjhg"]
+[ext_resource type="Script" uid="uid://c53xofc3mhc1p" path="res://main.gd" id="1_mqjhg"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 script = ExtResource("1_mqjhg")
 
 [node name="Background" type="ColorRect" parent="."]
-layout_mode = 3
+layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 color = Color(0, 0, 0, 1)
 
 [node name="UI" type="VBoxContainer" parent="."]
-layout_mode = 3
+layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 12
-padding_left = 24
-padding_top = 24
-padding_right = 24
-padding_bottom = 24
 
 [node name="Title" type="RichTextLabel" parent="UI"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
+theme_override_colors/default_color = Color(0.78, 0.32, 0.9, 1)
 bbcode_enabled = true
 text = "[center][b]Text-Only Adventure[/b][/center]"
 fit_content = true
 scroll_active = false
-scroll_following = false
-theme_override_colors/default_color = Color(0.78, 0.32, 0.9, 1)
 
 [node name="Output" type="RichTextLabel" parent="UI"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-bbcode_enabled = true
-text = "You wake in a quiet void.\n> Type a command to begin."
-scroll_active = true
-scroll_following = true
 theme_override_colors/default_color = Color(0.78, 0.32, 0.9, 1)
+bbcode_enabled = true
+text = "You wake in a quiet void.
+> Type a command to begin."
+scroll_following = true
 
 [node name="Input" type="TextEdit" parent="UI"]
+custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
-placeholder_text = "Type your command here..."
-custom_minimum_size = Vector2(0, 80)
-theme_override_colors/font_color = Color(0.78, 0.32, 0.9, 1)
-theme_override_colors/font_placeholder_color = Color(0.62, 0.2, 0.78, 1)
 theme_override_colors/background_color = Color(0, 0, 0, 1)
+theme_override_colors/font_placeholder_color = Color(0.62, 0.2, 0.78, 1)
+theme_override_colors/font_color = Color(0.78, 0.32, 0.9, 1)
+placeholder_text = "Type your command here..."
 
 [node name="Submit" type="Button" parent="UI"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.78, 0.32, 0.9, 1)
 text = "Send"
 flat = true
-theme_override_colors/font_color = Color(0.78, 0.32, 0.9, 1)
 
 [connection signal="pressed" from="UI/Submit" to="." method="_on_submit_pressed"]

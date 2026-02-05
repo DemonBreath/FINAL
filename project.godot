@@ -5,21 +5,27 @@
 ; Format:
 ;   [section] ; section goes between []
 ;   param=value ; assign values to parameters
-;
+
 config_version=5
 
 [application]
 
 config/name="TextOnlyGame"
 run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.4")
 
 [display]
 
 window/size/viewport_width=960
 window/size/viewport_height=540
 window/size/mode=1
-window/size/resizable=true
 
 [rendering]
 
+renderer/rendering_method="forward_plus"
 environment/defaults/default_clear_color=Color(0, 0, 0, 1)
+
+[xogot]
+
+project/editorState=[]
+project/breakpoints={}
