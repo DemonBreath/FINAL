@@ -1,7 +1,7 @@
 extends Control
 
-@onready var output: RichTextLabel = $UI/Output
-@onready var input: TextEdit = $UI/Input
+@onready var output: RichTextLabel = $Tabs/GAME/GameLayout/GameSplit/GamePanel/Output
+@onready var input: TextEdit = $Tabs/GAME/GameLayout/GameSplit/GamePanel/Input
 
 enum LoopState { INTAKE, SCENARIO, SUMMARY }
 
