@@ -7,21 +7,21 @@ extends Control
 @onready var stats_output: RichTextLabel = $Tabs/STATS/StatsOutput
 @onready var tabs: TabContainer = $Tabs
 
-var helix_renderer := HelixRenderer.new()
-var stats_panel := StatsPanel.new()
-var life_log_panel := LifeLogPanel.new()
+var helix_renderer: HelixRenderer = HelixRenderer.new()
+var stats_panel: StatsPanel = StatsPanel.new()
+var life_log_panel: LifeLogPanel = LifeLogPanel.new()
 
 var helix_game: RichTextLabel
 var helix_stats: RichTextLabel
 var splash_layer: ColorRect
 var splash_helix: RichTextLabel
-var helix_frame := 0
+var helix_frame: int = 0
 
 func _ready() -> void:
 	_configure_input_behavior(self)
 	_install_helix_ui()
 	_start_or_resume_life()
-	var timer := Timer.new()
+	var timer: Timer = Timer.new()
 	timer.wait_time = 0.28
 	timer.autostart = true
 	timer.one_shot = false
@@ -30,8 +30,8 @@ func _ready() -> void:
 	call_deferred("_focus_main_input")
 
 func _start_or_resume_life() -> void:
-	var username := _resolve_username()
-	var result := PlayerState.start_or_resume(username)
+	var username: String = _resolve_username()
+	var result: Dictionary = PlayerState.start_or_resume(username)
 	output.clear()
 	if bool(result.get("loaded", false)):
 		output.append_text("Welcome back, %s.\nResuming turn %d.\n" % [result.get("username", username), int(PlayerState.get_state().get("turn", 0))])
@@ -40,7 +40,7 @@ func _start_or_resume_life() -> void:
 	_refresh_all_panels()
 
 func _resolve_username() -> String:
-	var user := OS.get_environment("INTAKE_USERNAME").strip_edges()
+	var user: String = OS.get_environment("INTAKE_USERNAME").strip_edges()
 	if user.is_empty():
 		user = OS.get_environment("USER").strip_edges()
 	if user.is_empty():
@@ -56,9 +56,9 @@ func _submit_current_input() -> void:
 		input.clear()
 		_focus_main_input()
 		return
-	var command := input.text.strip_edges()
+	var command: String = input.text.strip_edges()
 	output.append_text("\n> %s" % (command if not command.is_empty() else "..."))
-	var result := PlayerState.resolve_turn(command)
+	var result: Dictionary = PlayerState.resolve_turn(command)
 	output.append_text("\n%s" % str(result.get("narrative", "")))
 	output.append_text("\n%s" % str(result.get("stat_line", "")))
 	if not str(result.get("condition", "")).is_empty():
@@ -83,14 +83,14 @@ func _refresh_life_log() -> void:
 	var entries: Array = life_log_panel.build_entries(PlayerState.get_state().get("life_log", []))
 	life_log_placeholder.visible = entries.is_empty()
 	for line in entries:
-		var label := Label.new()
+		var label: Label = Label.new()
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		label.text = line
 		life_log_content.add_child(label)
 
 func _render_helix() -> void:
-	var state := PlayerState.get_state()
-	var helix := helix_renderer.render(str(state.get("dna_bits", "")), state.get("mutated_bit_indices", []), helix_frame)
+	var state: Dictionary = PlayerState.get_state()
+	var helix: String = helix_renderer.render(str(state.get("dna_bits", "")), state.get("mutated_bit_indices", []), helix_frame)
 	helix_game.text = helix
 	helix_stats.text = helix
 	splash_helix.text = helix
@@ -143,7 +143,7 @@ func _install_helix_ui() -> void:
 	splash_layer.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(splash_layer)
 
-	var title := Label.new()
+	var title: Label = Label.new()
 	title.text = "INTAKE"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -160,7 +160,7 @@ func _install_helix_ui() -> void:
 	splash_helix.custom_minimum_size = Vector2(540, 300)
 	splash_layer.add_child(splash_helix)
 
-	var click_note := Label.new()
+	var click_note: Label = Label.new()
 	click_note.text = "Tap / click to begin"
 	click_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	click_note.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)

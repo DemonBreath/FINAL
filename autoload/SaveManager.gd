@@ -18,11 +18,11 @@ func load_blob() -> void:
 	if not FileAccess.file_exists(SAVE_PATH):
 		save_blob = _default_blob()
 		return
-	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if file == null:
 		save_blob = _default_blob()
 		return
-	var parsed := JSON.parse_string(file.get_as_text())
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
 	if parsed is Dictionary:
 		save_blob = _normalize_blob(parsed)
@@ -30,14 +30,14 @@ func load_blob() -> void:
 		save_blob = _default_blob()
 
 func save_blob_to_disk() -> void:
-	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
 		return
 	file.store_string(JSON.stringify(save_blob, "\t", true))
 	file.close()
 
 func get_profile(username: String) -> Dictionary:
-	var key := username.to_lower()
+	var key: String = username.to_lower()
 	return save_blob.get("profiles", {}).get(key, {}).duplicate(true)
 
 func set_profile(username: String, profile: Dictionary) -> void:
@@ -46,19 +46,19 @@ func set_profile(username: String, profile: Dictionary) -> void:
 	save_blob["profiles"] = profiles
 
 func username_exists(username: String) -> bool:
-	var key := username.to_lower()
+	var key: String = username.to_lower()
 	return save_blob.get("profiles", {}).has(key)
 
 func mark_username_used(username: String) -> void:
 	var used: Array = save_blob.get("meta", {}).get("used_usernames", [])
-	var key := username.to_lower()
+	var key: String = username.to_lower()
 	if not used.has(key):
 		used.append(key)
 		save_blob["meta"]["used_usernames"] = used
 
 func mark_username_dead(username: String) -> void:
 	var dead: Array = save_blob.get("meta", {}).get("dead_usernames", [])
-	var key := username.to_lower()
+	var key: String = username.to_lower()
 	if not dead.has(key):
 		dead.append(key)
 		save_blob["meta"]["dead_usernames"] = dead
@@ -83,7 +83,7 @@ func _default_blob() -> Dictionary:
 	}
 
 func _normalize_blob(raw: Dictionary) -> Dictionary:
-	var normalized := _default_blob()
+	var normalized: Dictionary = _default_blob()
 	normalized["meta"]["used_usernames"] = raw.get("meta", {}).get("used_usernames", []).duplicate(true)
 	normalized["meta"]["dead_usernames"] = raw.get("meta", {}).get("dead_usernames", []).duplicate(true)
 	normalized["profiles"] = raw.get("profiles", {}).duplicate(true)

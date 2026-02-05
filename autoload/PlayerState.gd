@@ -8,29 +8,32 @@ const STAT_RANGES := {
 	"endurance": Vector2i(3, 9),
 }
 
-var dna_engine := DNAEngine.new()
-var condition_system := ConditionSystem.new()
-var narrative_engine := NarrativeEngine.new()
+var dna_engine: DNAEngine = DNAEngine.new()
+var condition_system: ConditionSystem = ConditionSystem.new()
+var narrative_engine: NarrativeEngine = NarrativeEngine.new()
 
-var player_state: Dictionary = {}
+var player_state: Dictionary = _empty_state()
+
+func _ready() -> void:
+	player_state = _normalize_state(player_state)
 
 func start_or_resume(requested_username: String) -> Dictionary:
-	var username := _sanitize_username(requested_username)
+	var username: String = _sanitize_username(requested_username)
 	SaveManager.load_blob()
-	var profile := SaveManager.get_profile(username)
+	var profile: Dictionary = SaveManager.get_profile(username)
 	if not profile.is_empty() and not bool(profile.get("dead", false)):
 		player_state = _normalize_state(profile)
 		return {"loaded": true, "username": player_state["username"]}
-	var final_username := _unique_username(username)
+	var final_username: String = _unique_username(username)
 	_start_new_character(final_username)
 	return {"loaded": false, "username": final_username}
 
 func _start_new_character(username: String) -> void:
-	var seed := int(Time.get_unix_time_from_system()) ^ abs(int(hash("%s:%d" % [username, Time.get_ticks_usec()])))
-	var rng := RandomNumberGenerator.new()
+	var seed: int = int(Time.get_unix_time_from_system()) ^ abs(int(hash("%s:%d" % [username, Time.get_ticks_usec()])))
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed
-	var stats := _generate_stats(rng)
-	var dna_bits := dna_engine.generate(seed)
+	var stats: Dictionary = _generate_stats(rng)
+	var dna_bits: String = dna_engine.generate(seed)
 	player_state = {
 		"username": username,
 		"seed": seed,
@@ -44,13 +47,13 @@ func _start_new_character(username: String) -> void:
 		"used_text_hashes": [],
 		"dead": false,
 	}
-	var opening := narrative_engine.opening(seed, username, player_state["used_text_hashes"])
+	var opening: String = narrative_engine.opening(seed, username, player_state["used_text_hashes"])
 	append_life_log("opening", opening)
 	SaveManager.mark_username_used(username)
 	save_current_state()
 
 func append_life_log(entry_type: String, text: String, meta: Dictionary = {}) -> void:
-	var entry := {
+	var entry: Dictionary = {
 		"turn": int(player_state.get("turn", 0)),
 		"type": entry_type,
 		"text": text,
@@ -64,17 +67,17 @@ func append_life_log(entry_type: String, text: String, meta: Dictionary = {}) ->
 func resolve_turn(command: String) -> Dictionary:
 	if player_state.is_empty() or bool(player_state.get("dead", false)):
 		return {"narrative": "No active life.", "prompt": "Start again with a new identity.", "stat_line": ""}
-	var clean_command := command.strip_edges()
+	var clean_command: String = command.strip_edges()
 	player_state["turn"] = int(player_state.get("turn", 0)) + 1
-	var turn := int(player_state["turn"])
-	var intent := _parse_intent(clean_command)
-	var stat_line := _apply_intent(intent)
-	var condition := condition_system.roll_new_condition(int(player_state["seed"]), turn, clean_command, player_state["conditions"])
+	var turn: int = int(player_state["turn"])
+	var intent: String = _parse_intent(clean_command)
+	var stat_line: String = _apply_intent(intent)
+	var condition: String = condition_system.roll_new_condition(int(player_state["seed"]), turn, clean_command, player_state["conditions"])
 	if not condition.is_empty():
 		_contract_condition(condition)
 		append_life_log("condition", "A dramatic onset: %s." % condition, {})
-	var tone := condition_system.tone_from_conditions(player_state["conditions"])
-	var narrative_payload := narrative_engine.response(int(player_state["seed"]), turn, clean_command if not clean_command.is_empty() else "wait", tone, player_state["used_text_hashes"])
+	var tone: String = condition_system.tone_from_conditions(player_state["conditions"])
+	var narrative_payload: Dictionary = narrative_engine.response(int(player_state["seed"]), turn, clean_command if not clean_command.is_empty() else "wait", tone, player_state["used_text_hashes"])
 	append_life_log("turn", narrative_payload["narrative"], {"command": clean_command, "intent": intent})
 	append_life_log("stat", stat_line, {})
 	_update_leaderboard_stub()
@@ -115,7 +118,7 @@ func save_current_state() -> void:
 	SaveManager.save_blob_to_disk()
 
 func _parse_intent(command: String) -> String:
-	var normalized := command.to_lower()
+	var normalized: String = command.to_lower()
 	if normalized.is_empty():
 		return "pause"
 	if normalized.contains("walk") or normalized.contains("run"):
@@ -159,23 +162,23 @@ func _contract_condition(condition_name: String) -> void:
 		return
 	conditions.append(condition_name)
 	player_state["conditions"] = conditions
-	var mutation := dna_engine.mutate_bit(str(player_state.get("dna_bits", "")), player_state.get("mutated_bit_indices", []), int(player_state.get("seed", 0)), condition_name)
+	var mutation: Dictionary = dna_engine.mutate_bit(str(player_state.get("dna_bits", "")), player_state.get("mutated_bit_indices", []), int(player_state.get("seed", 0)), condition_name)
 	player_state["dna_bits"] = mutation.get("dna_bits", player_state.get("dna_bits", ""))
-	var idx := int(mutation.get("index", -1))
+	var idx: int = int(mutation.get("index", -1))
 	if idx >= 0:
 		var mutated: Array = player_state.get("mutated_bit_indices", [])
 		mutated.append(idx)
 		player_state["mutated_bit_indices"] = mutated
 
 func _generate_stats(rng: RandomNumberGenerator) -> Dictionary:
-	var stats := {}
+	var stats: Dictionary = {}
 	for key in STAT_RANGES.keys():
 		var range: Vector2i = STAT_RANGES[key]
 		stats[key] = rng.randi_range(range.x, range.y)
 	return stats
 
 func _sanitize_username(raw: String) -> String:
-	var clean := raw.strip_edges()
+	var clean: String = raw.strip_edges()
 	if clean.is_empty():
 		clean = "Player"
 	return clean
@@ -183,16 +186,16 @@ func _sanitize_username(raw: String) -> String:
 func _unique_username(base_username: String) -> String:
 	if not SaveManager.username_exists(base_username):
 		return base_username
-	var i := 1
+	var i: int = 1
 	while i < 5000:
-		var candidate := "%s_%03d" % [base_username, i]
+		var candidate: String = "%s_%03d" % [base_username, i]
 		if not SaveManager.username_exists(candidate):
 			return candidate
 		i += 1
 	return "%s_%d" % [base_username, Time.get_unix_time_from_system()]
 
 func _normalize_state(raw: Dictionary) -> Dictionary:
-	var normalized := {
+	var normalized: Dictionary = {
 		"username": str(raw.get("username", "Player")),
 		"seed": int(raw.get("seed", 0)),
 		"turn": int(raw.get("turn", 0)),
@@ -210,10 +213,25 @@ func _normalize_state(raw: Dictionary) -> Dictionary:
 	return normalized
 
 func _update_leaderboard_stub() -> void:
-	var board := SaveManager.get_leaderboard()
+	var board: Dictionary = SaveManager.get_leaderboard()
 	board["longest_life"] = max(int(board.get("longest_life", 0)), int(player_state.get("turn", 0)))
 	board["most_mutations"] = max(int(board.get("most_mutations", 0)), player_state.get("mutated_bit_indices", []).size())
 	board["highest_stress_survived"] = max(int(board.get("highest_stress_survived", 0)), int(player_state.get("stats", {}).get("stress", 0)))
 	board["most_turns"] = board.get("longest_life", 0)
 	board["rarest_condition"] = ""
 	SaveManager.set_leaderboard(board)
+
+func _empty_state() -> Dictionary:
+	return {
+		"username": "",
+		"seed": 0,
+		"turn": 0,
+		"stats": {},
+		"starting_stats": {},
+		"conditions": [],
+		"dna_bits": "",
+		"mutated_bit_indices": [],
+		"life_log": [],
+		"used_text_hashes": [],
+		"dead": false,
+	}
