@@ -17,9 +17,6 @@ var scenario_index := 0
 var last_consumed := ""
 
 func _ready() -> void:
-	output.clear()
-	output.append_text("Welcome. We'll move through a short loop together.")
-	_prompt_intake()
 	input.grab_focus()
 
 func _on_submit_pressed() -> void:
