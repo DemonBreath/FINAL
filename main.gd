@@ -80,7 +80,7 @@ func _start_new_life() -> void:
 		available_openings = START_SCENARIOS.duplicate()
 		available_openings.shuffle()
 
-	var opening := available_openings.pop_back()
+	var opening: String = available_openings.pop_back()
 	output.clear()
 	output.append_text("%s\n\nEnter a command to take your first action." % opening)
 	_reset_life_log()
