@@ -34,7 +34,7 @@ func mutate_once(bits: PackedInt32Array, existing_indices: Array[int], seed: int
 	bits[pick] = 1 if old_value == 0 else 0
 	return pick
 
-func to_string(bits: PackedInt32Array) -> String:
+func get_dna_string(bits: PackedInt32Array) -> String:
 	var out: String = ""
 	for bit: int in bits:
 		out += str(bit)

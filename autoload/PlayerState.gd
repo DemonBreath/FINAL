@@ -26,6 +26,7 @@ var dna_engine: DNAEngine = DNAEngine.new()
 var narrative_engine: NarrativeEngine = NarrativeEngine.new()
 
 func _ready() -> void:
+	_ensure_save_manager_ready()
 	if seed == 0:
 		_reset_runtime_defaults()
 	_ensure_non_null()
@@ -45,6 +46,7 @@ func _ensure_non_null() -> void:
 		life_log = []
 
 func start_or_resume(requested_username: String) -> void:
+	_ensure_save_manager_ready()
 	var desired_username: String = _sanitize_username(requested_username)
 	SaveManager.load_blob()
 	var loaded: Dictionary = SaveManager.load_game()
@@ -162,6 +164,9 @@ func deserialize(data: Dictionary) -> void:
 	dead = bool(data.get("dead", false))
 	environment_memory = data.get("environment_memory", {"last_zone": "processing district", "echo": 0}).duplicate(true)
 	_ensure_non_null()
+	if dna_bits.size() == 0 and seed != 0:
+		# Godot 4 mobile exports can deserialize empty PackedInt32Array values from stale saves.
+		dna_bits = dna_engine.generate(seed)
 
 func get_state() -> Dictionary:
 	return serialize()
@@ -169,8 +174,17 @@ func get_state() -> Dictionary:
 func current_opening_text() -> String:
 	return "You arrive in INTAKE with no restart and no clean slate."
 
+func get_dna_string() -> String:
+	return dna_engine.get_dna_string(dna_bits)
+
 func save() -> void:
 	SaveManager.save_game(serialize())
+
+func _ensure_save_manager_ready() -> void:
+	if SaveManager == null:
+		return
+	if SaveManager.save_blob.is_empty():
+		SaveManager.load_blob()
 
 func _append_life_log(log_turn: int, command: String, text: String, reason: String) -> void:
 	var entry: Dictionary = {
