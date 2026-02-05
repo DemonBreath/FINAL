@@ -29,7 +29,7 @@ func start_or_resume(username: String) -> bool:
 	if current_username.is_empty():
 		current_username = "Player"
 
-	var save_data := _read_all_saves()
+	var save_data: Dictionary = _read_all_saves()
 	if save_data.has(current_username):
 		game_state = _normalize_loaded_state(save_data[current_username])
 		return true
@@ -43,8 +43,8 @@ func start_new_life(username: String = "") -> void:
 	if current_username.is_empty():
 		current_username = "Player"
 
-	var rng := RandomNumberGenerator.new()
-	var seed := int(Time.get_unix_time_from_system()) ^ randi()
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	var seed: int = int(Time.get_unix_time_from_system()) ^ abs(int(hash("%s:%d" % [current_username, Time.get_ticks_usec()])))
 	rng.seed = seed
 
 	game_state = {
@@ -58,9 +58,9 @@ func start_new_life(username: String = "") -> void:
 		"mutated_indices": [],
 	}
 
-	var initial_condition_count := rng.randi_range(0, 3)
+	var initial_condition_count: int = rng.randi_range(0, 3)
 	for _i: int in range(initial_condition_count):
-		var condition := STARTING_CONDITION_POOL[rng.randi_range(0, STARTING_CONDITION_POOL.size() - 1)]
+		var condition: String = STARTING_CONDITION_POOL[rng.randi_range(0, STARTING_CONDITION_POOL.size() - 1)]
 		contract_condition(condition)
 
 	add_life_log_entry("system", "New life initialized.", {"seed": seed})
@@ -69,7 +69,7 @@ func start_new_life(username: String = "") -> void:
 func clear_current_life() -> void:
 	if current_username.is_empty():
 		return
-	var save_data := _read_all_saves()
+	var save_data: Dictionary = _read_all_saves()
 	save_data.erase(current_username)
 	_write_all_saves(save_data)
 	game_state = {}
@@ -103,7 +103,7 @@ func contract_condition(condition_name: String) -> int:
 func add_life_log_entry(entry_type: String, text: String, meta: Dictionary = {}) -> void:
 	if game_state.is_empty():
 		return
-	var log_entry := {
+	var log_entry: Dictionary = {
 		"turn": int(game_state.get("turn", 0)),
 		"type": entry_type,
 		"text": text,
@@ -117,7 +117,7 @@ func add_life_log_entry(entry_type: String, text: String, meta: Dictionary = {})
 func save_current_state() -> void:
 	if game_state.is_empty() or current_username.is_empty():
 		return
-	var save_data := _read_all_saves()
+	var save_data: Dictionary = _read_all_saves()
 	save_data[current_username] = game_state
 	_write_all_saves(save_data)
 
@@ -134,16 +134,16 @@ func get_dna_bits() -> String:
 	return str(game_state.get("dna_bits", ""))
 
 func _mark_random_mutation_index() -> int:
-	var dna_bits := get_dna_bits()
+	var dna_bits: String = get_dna_bits()
 	if dna_bits.is_empty():
 		return -1
-	var mutated := get_mutated_indices()
+	var mutated: Array[int] = get_mutated_indices()
 	if mutated.size() >= dna_bits.length():
 		return -1
 
-	var rng := RandomNumberGenerator.new()
-	rng.seed = int(game_state.get("seed", 0)) + int(game_state.get("turn", 0)) + mutated.size() + randi()
-	var index := rng.randi_range(0, dna_bits.length() - 1)
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = int(game_state.get("seed", 0)) + int(game_state.get("turn", 0)) + mutated.size()
+	var index: int = rng.randi_range(0, dna_bits.length() - 1)
 	while mutated.has(index):
 		index = rng.randi_range(0, dna_bits.length() - 1)
 	mutated.append(index)
@@ -151,14 +151,14 @@ func _mark_random_mutation_index() -> int:
 	return index
 
 func _generate_stats(rng: RandomNumberGenerator) -> Dictionary:
-	var generated := {}
+	var generated: Dictionary = {}
 	for stat_key: String in BASE_STAT_RANGES.keys():
 		var range: Vector2i = BASE_STAT_RANGES[stat_key]
 		generated[stat_key] = rng.randi_range(range.x, range.y)
 	return generated
 
 func _generate_dna_bits(rng: RandomNumberGenerator, length: int) -> String:
-	var bits := ""
+	var bits: String = ""
 	for _i: int in range(length):
 		bits += str(rng.randi_range(0, 1))
 	return bits
@@ -166,27 +166,27 @@ func _generate_dna_bits(rng: RandomNumberGenerator, length: int) -> String:
 func _read_all_saves() -> Dictionary:
 	if not FileAccess.file_exists(SAVE_PATH):
 		return {}
-	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if file == null:
 		return {}
-	var raw_text := file.get_as_text()
+	var raw_text: String = file.get_as_text()
 	file.close()
 	if raw_text.is_empty():
 		return {}
-	var parsed = JSON.parse_string(raw_text)
+	var parsed: Variant = JSON.parse_string(raw_text)
 	if parsed is Dictionary:
 		return parsed
 	return {}
 
 func _write_all_saves(data: Dictionary) -> void:
-	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var file: FileAccess = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
 		return
 	file.store_string(JSON.stringify(data))
 	file.close()
 
 func _normalize_loaded_state(state: Dictionary) -> Dictionary:
-	var normalized := {
+	var normalized: Dictionary = {
 		"username": str(state.get("username", current_username)),
 		"seed": int(state.get("seed", 0)),
 		"turn": int(state.get("turn", 0)),
@@ -194,14 +194,22 @@ func _normalize_loaded_state(state: Dictionary) -> Dictionary:
 		"conditions": state.get("conditions", []).duplicate(true),
 		"life_log": state.get("life_log", []).duplicate(true),
 		"dna_bits": str(state.get("dna_bits", "")),
-		"mutated_indices": state.get("mutated_indices", []).duplicate(true),
+		"mutated_indices": [],
 	}
+
+	var raw_mutated: Array = state.get("mutated_indices", [])
+	var typed_mutated: Array[int] = []
+	for value: Variant in raw_mutated:
+		typed_mutated.append(int(value))
+	normalized["mutated_indices"] = typed_mutated
 
 	for stat_key: String in BASE_STAT_RANGES.keys():
 		if not normalized["stats"].has(stat_key):
 			normalized["stats"][stat_key] = BASE_STAT_RANGES[stat_key].x
 
 	if str(normalized["dna_bits"]).is_empty():
-		normalized["dna_bits"] = _generate_dna_bits(RandomNumberGenerator.new(), DNA_LENGTH)
+		var fallback_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+		fallback_rng.seed = int(normalized.get("seed", 0))
+		normalized["dna_bits"] = _generate_dna_bits(fallback_rng, DNA_LENGTH)
 
 	return normalized

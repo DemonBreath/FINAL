@@ -90,7 +90,10 @@ func _refresh_life_log() -> void:
 
 func _render_helix() -> void:
 	var state: Dictionary = PlayerState.get_state()
-	var helix: String = helix_renderer.render(str(state.get("dna_bits", "")), state.get("mutated_bit_indices", []), helix_frame)
+	var mutated: Array[int] = []
+	for value: Variant in state.get("mutated_bit_indices", []):
+		mutated.append(int(value))
+	var helix: String = helix_renderer.render(str(state.get("dna_bits", "")), mutated, helix_frame)
 	helix_game.text = helix
 	helix_stats.text = helix
 	splash_helix.text = helix

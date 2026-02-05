@@ -4,9 +4,9 @@ class_name DNAEngine
 const DNA_LENGTH := 160
 
 func generate(seed: int) -> String:
-	var rng := RandomNumberGenerator.new()
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed
-	var bits := ""
+	var bits: String = ""
 	for _i in range(DNA_LENGTH):
 		bits += str(rng.randi_range(0, 1))
 	return bits
@@ -14,7 +14,7 @@ func generate(seed: int) -> String:
 func mutate_bit(dna_bits: String, mutated_indices: Array[int], seed: int, condition_name: String) -> Dictionary:
 	if dna_bits.is_empty() or mutated_indices.size() >= dna_bits.length():
 		return {"dna_bits": dna_bits, "index": -1}
-	var pick := abs(int(hash("%s:%d:%d" % [condition_name, seed, mutated_indices.size()]))) % dna_bits.length()
+	var pick: int = abs(int(hash("%s:%d:%d" % [condition_name, seed, mutated_indices.size()]))) % dna_bits.length()
 	while mutated_indices.has(pick):
 		pick = (pick + 1) % dna_bits.length()
 	var chars: PackedStringArray = dna_bits.split("", false)
