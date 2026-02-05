@@ -21,25 +21,24 @@ grow_vertical = 2
 color = Color(0, 0, 0, 1)
 
 [node name="Tabs" type="TabContainer" parent="."]
-layout_mode = 3
+layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 12
+current_tab = 0
 
 [node name="GAME" type="Control" parent="Tabs"]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-tab_title = "GAME"
+metadata/_tab_index = 0
 
 [node name="GameLayout" type="VBoxContainer" parent="Tabs/GAME"]
-layout_mode = 3
+layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -77,8 +76,8 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_colors/default_color = Color(0.78, 0.32, 0.9, 1)
 bbcode_enabled = true
-text = "You wake in a quiet void.\n> Type a command to begin."
-scroll_active = true
+text = "You wake in a quiet void.
+> Type a command to begin."
 scroll_following = true
 
 [node name="Input" type="TextEdit" parent="Tabs/GAME/GameLayout/GameSplit/GamePanel"]
@@ -106,14 +105,14 @@ theme_override_constants/separation = 8
 [node name="LifeLogTitle" type="Label" parent="Tabs/GAME/GameLayout/GameSplit/LifeLogPanel"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Life Log"
 theme_override_colors/font_color = Color(0.78, 0.32, 0.9, 1)
+text = "Life Log"
 
 [node name="LifeLogScroll" type="ScrollContainer" parent="Tabs/GAME/GameLayout/GameSplit/LifeLogPanel"]
+custom_minimum_size = Vector2(0, 200)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-custom_minimum_size = Vector2(0, 200)
 
 [node name="LifeLogContent" type="VBoxContainer" parent="Tabs/GAME/GameLayout/GameSplit/LifeLogPanel/LifeLogScroll"]
 layout_mode = 2
@@ -124,53 +123,47 @@ theme_override_constants/separation = 6
 [node name="LifeLogPlaceholder" type="Label" parent="Tabs/GAME/GameLayout/GameSplit/LifeLogPanel/LifeLogScroll/LifeLogContent"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "No entries yet."
 theme_override_colors/font_color = Color(0.78, 0.32, 0.9, 1)
+text = "No entries yet."
 
 [node name="STATS" type="Control" parent="Tabs"]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+visible = false
+layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-tab_title = "STATS"
+metadata/_tab_index = 1
 
 [node name="StatsLabel" type="Label" parent="Tabs/STATS"]
 layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.0
-anchor_top = 0.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = 24.0
-offset_right = -24.0
-offset_bottom = -24.0
-text = "Stats will appear here."
-theme_override_colors/font_color = Color(0.78, 0.32, 0.9, 1)
-
-[node name="PvP" type="Control" parent="Tabs"]
-layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.78, 0.32, 0.9, 1)
+text = "Stats will appear here."
+
+[node name="PvP" type="Control" parent="Tabs"]
+visible = false
+layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-tab_title = "PvP"
+metadata/_tab_index = 2
 
 [node name="PvPLabel" type="Label" parent="Tabs/PvP"]
 layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.0
-anchor_top = 0.0
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 24.0
 offset_top = 24.0
 offset_right = -24.0
 offset_bottom = -24.0
-text = "PvP unavailable."
+grow_horizontal = 2
 theme_override_colors/font_color = Color(0.78, 0.32, 0.9, 1)
+text = "PvP unavailable."
 
 [connection signal="pressed" from="Tabs/GAME/GameLayout/GameSplit/GamePanel/Submit" to="." method="_on_submit_pressed"]
