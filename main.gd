@@ -26,14 +26,10 @@ const STAT_NOTIFICATIONS := {
 var available_openings: Array[String] = []
 
 func _ready() -> void:
-	# WHY: UI defaults in Godot can block pointer events on containers on desktop,
-	# so we explicitly set pass/stop behavior to keep tabs, line input, and buttons reliable.
 	_configure_input_behavior(self)
-	# WHY: Start scenarios should not repeat inside one run, so we use a shuffled draw pool.
 	available_openings = START_SCENARIOS.duplicate()
 	available_openings.shuffle()
-	start_new_life()
-	# WHY: Deferred focus guarantees the caret appears as soon as the first frame is ready.
+	_start_or_resume_life()
 	call_deferred("_focus_main_input")
 
 func _focus_main_input() -> void:
@@ -68,102 +64,143 @@ func _submit_current_input() -> void:
 		return
 
 	output.append_text("\n> %s" % command)
-	_add_life_log_entry("Action: %s" % command)
 	_process_player_action(command)
 	input.clear()
 	_focus_main_input()
 
-func start_new_life() -> void:
+func _start_or_resume_life() -> void:
+	var username := _resolve_username()
+	var loaded_existing := PlayerState.start_or_resume(username)
+	output.clear()
+	if loaded_existing:
+		var state := PlayerState.get_state()
+		output.append_text("Welcome back, %s.\nResuming turn %d.\n\nEnter your next command." % [state.get("username", username), int(state.get("turn", 0))])
+	else:
+		_start_new_life_narrative()
+	_refresh_life_log_from_state()
+	_update_stats_panel()
+
+func _resolve_username() -> String:
+	var env_user := OS.get_environment("INTAKE_USERNAME").strip_edges()
+	if env_user.is_empty():
+		env_user = OS.get_environment("USER").strip_edges()
+	if env_user.is_empty():
+		env_user = OS.get_environment("USERNAME").strip_edges()
+	if env_user.is_empty():
+		env_user = "Player"
+	return env_user
+
+func _start_new_life_narrative() -> void:
 	if available_openings.is_empty():
 		available_openings = START_SCENARIOS.duplicate()
 		available_openings.shuffle()
-
 	var opening: String = available_openings.pop_back()
-	PlayerState.start_new_game()
-	output.clear()
 	output.append_text("%s\n\nEnter a command to take your first action." % opening)
-	_reset_life_log()
-	_add_life_log_entry("Major event: New life initialized (seed %d)." % PlayerState.character_seed)
-	_update_stats_panel()
 
-func _reset_life_log() -> void:
+func _refresh_life_log_from_state() -> void:
 	for child: Node in life_log_content.get_children():
 		if child != life_log_placeholder:
 			child.queue_free()
-	life_log_placeholder.visible = true
-
-func _add_life_log_entry(entry: String) -> void:
-	life_log_placeholder.visible = false
-	var label := Label.new()
-	label.text = entry
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	life_log_content.add_child(label)
+	var entries: Array = PlayerState.get_state().get("life_log", [])
+	life_log_placeholder.visible = entries.is_empty()
+	for entry in entries:
+		if entry is Dictionary:
+			var label := Label.new()
+			label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			label.text = "Turn %d [%s]: %s" % [int(entry.get("turn", 0)), str(entry.get("type", "log")), str(entry.get("text", ""))]
+			life_log_content.add_child(label)
 
 func _process_player_action(command: String) -> void:
 	var turn := PlayerState.advance_turn()
 	var normalized := command.to_lower()
-	var stat_line := ""
+	var stat_update_line := ""
+	var narrative := _build_turn_narrative(command, turn)
 
 	if normalized.contains("walk"):
-		stat_line = _apply_stat_delta("endurance", 1)
+		stat_update_line = _apply_stat_delta("endurance", 1)
 	elif normalized.contains("study") or normalized.contains("read"):
-		stat_line = _apply_stat_delta("intellect", 1)
+		stat_update_line = _apply_stat_delta("intellect", 1)
 	elif normalized.contains("observe") or normalized.contains("search"):
-		stat_line = _apply_stat_delta("perception", 1)
+		stat_update_line = _apply_stat_delta("perception", 1)
 	elif normalized.contains("rest") or normalized.contains("recover"):
-		stat_line = _apply_stat_delta("stress", -1)
+		stat_update_line = _apply_stat_delta("stress", -1)
+	elif normalized.contains("panic"):
+		stat_update_line = _apply_stat_delta("stress", 2)
 	else:
-		stat_line = "Action recorded."
+		stat_update_line = "You commit to the action and adjust your footing for what comes next."
 
-	var narrative := _build_turn_narrative(command, turn)
-	output.append_text("\n%s" % narrative)
-	output.append_text("\n%s" % stat_line)
-	output.append_text("\n[Next command?]")
 	_run_post_turn_mutations(turn, command)
-	_add_life_log_entry("Turn %d: %s" % [turn, narrative])
+
+	output.append_text("\n%s" % narrative)
+	output.append_text("\n%s" % stat_update_line)
+	output.append_text("\n[Next command?]")
+
+	PlayerState.add_life_log_entry("turn", narrative, {"command": command})
+	PlayerState.save_current_state()
+	_refresh_life_log_from_state()
 	_update_stats_panel()
 
+	if _is_dead():
+		_handle_death_and_rebirth()
 
-func _run_post_turn_mutations(_turn: int, _command: String) -> void:
-	# Hook reserved for future disease progression/superpower mutation logic.
-	# Keep lightweight for now while guaranteeing every action has a mutation touchpoint.
-	pass
+func _run_post_turn_mutations(turn: int, command: String) -> void:
+	if turn % 5 != 0:
+		return
+	var condition_name := "Mutation Echo %d" % turn
+	var mutated_index := PlayerState.contract_condition(condition_name)
+	if mutated_index >= 0:
+		PlayerState.add_life_log_entry("condition", "Contracted %s (DNA bit %d mutated)." % [condition_name, mutated_index], {"bit_index": mutated_index, "trigger": command})
 
 func _apply_stat_delta(stat_key: String, amount: int) -> String:
-	PlayerState.apply_stat_delta(stat_key, amount)
+	var current_value := PlayerState.apply_stat_delta(stat_key, amount)
 	var human_name: String = STAT_NOTIFICATIONS.get(stat_key, stat_key.capitalize())
 	var direction := "increased" if amount > 0 else "decreased"
-	var current_value: int = PlayerState.stats.get(stat_key, 0)
-	_add_life_log_entry("Stat change: %s -> %d (%+d)" % [human_name, current_value, amount])
-	return "%s %s." % [human_name, direction]
+	PlayerState.add_life_log_entry("stat", "%s %s to %d." % [human_name, direction, current_value], {"delta": amount})
+	return "%s %s to %d." % [human_name, direction, current_value]
 
 func _build_turn_narrative(command: String, turn: int) -> String:
+	var state := PlayerState.get_state()
+	var stress := int(state.get("stats", {}).get("stress", 0))
 	var mood := "The city hums in warning tones"
-	if PlayerState.stats.get("stress", 0) <= 2:
+	if stress <= 2:
 		mood = "The alarms settle into a low mechanical heartbeat"
-	elif PlayerState.stats.get("stress", 0) >= 8:
+	elif stress >= 8:
 		mood = "Static crawls over your skin as pressure mounts"
 	return "Turn %d: %s after you '%s'." % [turn, mood, command]
 
+func _is_dead() -> bool:
+	var stats: Dictionary = PlayerState.get_state().get("stats", {})
+	return int(stats.get("endurance", 1)) <= 0 or int(stats.get("stress", 0)) >= 12
+
+func _handle_death_and_rebirth() -> void:
+	output.append_text("\n\n[b]You die in this timeline.[/b]\nA new life is generated immediately.")
+	PlayerState.clear_current_life()
+	PlayerState.start_new_life(_resolve_username())
+	_start_new_life_narrative()
+	PlayerState.save_current_state()
+	_refresh_life_log_from_state()
+	_update_stats_panel()
+
 func _update_stats_panel() -> void:
+	var state := PlayerState.get_state()
 	var lines: Array[String] = []
-	lines.append("[b]Seed[/b]: %d" % PlayerState.character_seed)
-	lines.append("[b]Turn[/b]: %d" % PlayerState.turn_counter)
+	lines.append("[b]Username[/b]: %s" % str(state.get("username", "Player")))
+	lines.append("[b]Seed[/b]: %d" % int(state.get("seed", 0)))
+	lines.append("[b]Turn[/b]: %d" % int(state.get("turn", 0)))
 	lines.append("")
 	lines.append("[b]Stats[/b]")
-	for stat_key: String in PlayerState.stats.keys():
-		lines.append("%s: %d" % [STAT_NOTIFICATIONS.get(stat_key, stat_key.capitalize()), PlayerState.stats[stat_key]])
+	var stats: Dictionary = state.get("stats", {})
+	for stat_key: String in STAT_NOTIFICATIONS.keys():
+		lines.append("%s: %d" % [STAT_NOTIFICATIONS[stat_key], int(stats.get(stat_key, 0))])
 	lines.append("")
 	lines.append("[b]Conditions[/b]")
-	if PlayerState.diseases.is_empty():
-		lines.append("[color=#b066ff]None[/color]")
+	var conditions: Array = state.get("conditions", [])
+	if conditions.is_empty():
+		lines.append("[color=#ff4a4a]None[/color]")
 	else:
-		for disease: Dictionary in PlayerState.diseases:
-			var disease_name: String = disease.get("name", "Unknown")
-			if disease.get("is_superpower", false):
-				lines.append("[color=#ff4a4a]%s[/color]" % disease_name)
-			else:
-				lines.append("[color=#b066ff]%s[/color]" % disease_name)
+		for condition in conditions:
+			lines.append("[color=#ff4a4a]%s[/color]" % str(condition))
 	lines.append("")
-	lines.append("[b]DNA Hook[/b]: %s" % PlayerState.get_dna_sequence())
+	lines.append("[b]DNA bits[/b]: %s" % str(state.get("dna_bits", "")))
+	lines.append("[b]Mutated bit indices[/b]: %s" % str(PlayerState.get_mutated_indices()))
 	stats_output.text = "\n".join(lines)
