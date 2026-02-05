@@ -10,33 +10,28 @@ extends Control
 var helix_renderer: HelixRenderer = HelixRenderer.new()
 var stats_panel: StatsPanel = StatsPanel.new()
 var life_log_panel: LifeLogPanel = LifeLogPanel.new()
+var dna_engine: DNAEngine = DNAEngine.new()
 
-var helix_game: RichTextLabel
-var helix_stats: RichTextLabel
-var splash_layer: ColorRect
-var splash_helix: RichTextLabel
-var helix_frame: int = 0
+var helix_game: RichTextLabel = RichTextLabel.new()
+var helix_stats: RichTextLabel = RichTextLabel.new()
+var splash_layer: ColorRect = ColorRect.new()
+var splash_helix: RichTextLabel = RichTextLabel.new()
+var splash_started: bool = false
+var pregame_bits: PackedInt32Array = PackedInt32Array()
 
 func _ready() -> void:
 	_configure_input_behavior(self)
 	_install_helix_ui()
 	_start_or_resume_life()
-	var timer: Timer = Timer.new()
-	timer.wait_time = 0.28
-	timer.autostart = true
-	timer.one_shot = false
-	add_child(timer)
-	timer.timeout.connect(_tick_helix)
 	call_deferred("_focus_main_input")
 
 func _start_or_resume_life() -> void:
 	var username: String = _resolve_username()
-	var result: Dictionary = PlayerState.start_or_resume(username)
+	PlayerState.start_or_resume(username)
 	output.clear()
-	if bool(result.get("loaded", false)):
-		output.append_text("Welcome back, %s.\nResuming turn %d.\n" % [result.get("username", username), int(PlayerState.get_state().get("turn", 0))])
-	else:
-		output.append_text("%s\n" % PlayerState.current_opening_text())
+	if PlayerState.turn == 0:
+		output.append_text(PlayerState.current_opening_text())
+	_append_prompt()
 	_refresh_all_panels()
 
 func _resolve_username() -> String:
@@ -50,26 +45,22 @@ func _resolve_username() -> String:
 	return user
 
 func _submit_current_input() -> void:
-	if PlayerState.get_state().is_empty():
-		return
-	if bool(PlayerState.get_state().get("dead", false)):
-		input.clear()
-		_focus_main_input()
-		return
 	var command: String = input.text.strip_edges()
-	output.append_text("\n> %s" % (command if not command.is_empty() else "..."))
-	var result: Dictionary = PlayerState.resolve_turn(command)
-	output.append_text("\n%s" % str(result.get("narrative", "")))
-	output.append_text("\n%s" % str(result.get("stat_line", "")))
-	if not str(result.get("condition", "")).is_empty():
-		output.append_text("\n[color=#ff4a4a]Condition contracted: %s[/color]" % result.get("condition", ""))
-	output.append_text("\n%s" % str(result.get("prompt", "What next?")))
-	if PlayerState.is_dead():
-		PlayerState.kill_current_life("System collapse. This life is permanently over.")
-		output.append_text("\n\n[b]You died. This identity is permanently closed.[/b]")
+	if command.is_empty():
+		command = "wait"
+	output.append_text("\n> %s" % command)
+	var turn_result: Dictionary = PlayerState.apply_action(command)
+	output.append_text("\n%s" % str(turn_result.get("text", "")))
+	var condition_value: Variant = turn_result.get("possible_condition", null)
+	if condition_value != null:
+		output.append_text("\n[color=#ff4a4a]Condition acquired: %s[/color]" % str(condition_value))
+	_append_prompt()
 	_refresh_all_panels()
 	input.clear()
 	_focus_main_input()
+
+func _append_prompt() -> void:
+	output.append_text("\n%s" % ("What do you attempt next? [Turn %d]" % PlayerState.turn))
 
 func _refresh_all_panels() -> void:
 	_refresh_life_log()
@@ -77,30 +68,31 @@ func _refresh_all_panels() -> void:
 	_render_helix()
 
 func _refresh_life_log() -> void:
-	for child in life_log_content.get_children():
+	for child: Node in life_log_content.get_children():
 		if child != life_log_placeholder:
 			child.queue_free()
-	var entries: Array = life_log_panel.build_entries(PlayerState.get_state().get("life_log", []))
+	var entries: Array[String] = life_log_panel.build_entries(PlayerState.get_state().get("life_log", []))
 	life_log_placeholder.visible = entries.is_empty()
-	for line in entries:
+	for line: String in entries:
 		var label: Label = Label.new()
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		label.text = line
 		life_log_content.add_child(label)
+	var scroll: ScrollContainer = $Tabs/GAME/GameLayout/GameSplit/LifeLogPanel/LifeLogScroll
+	scroll.scroll_vertical = 1000000
 
 func _render_helix() -> void:
-	var state: Dictionary = PlayerState.get_state()
-	var mutated: Array[int] = []
-	for value: Variant in state.get("mutated_bit_indices", []):
-		mutated.append(int(value))
-	var helix: String = helix_renderer.render(str(state.get("dna_bits", "")), mutated, helix_frame)
+	var bits_to_render: PackedInt32Array = pregame_bits
+	var mutation_indices: Array[int] = []
+	var frame: int = 0
+	if splash_started:
+		bits_to_render = PlayerState.dna_bits
+		mutation_indices = PlayerState.mutated_bit_indices
+		frame = PlayerState.turn
+	var helix: String = helix_renderer.render(bits_to_render, mutation_indices, frame)
 	helix_game.text = helix
 	helix_stats.text = helix
 	splash_helix.text = helix
-
-func _tick_helix() -> void:
-	helix_frame = (helix_frame + 1) % 99999
-	_render_helix()
 
 func _on_submit_pressed() -> void:
 	_submit_current_input()
@@ -113,19 +105,23 @@ func _focus_main_input() -> void:
 	input.caret_column = input.text.length()
 
 func _configure_input_behavior(root: Node) -> void:
-	if root is Container or root is ColorRect or (root is Control and not _is_interactive_control(root)):
-		(root as Control).mouse_filter = Control.MOUSE_FILTER_PASS
-		(root as Control).focus_mode = Control.FOCUS_NONE
-	if root is TabContainer or root is BaseButton or root is LineEdit:
-		(root as Control).mouse_filter = Control.MOUSE_FILTER_STOP
-		(root as Control).focus_mode = Control.FOCUS_ALL
-	for child in root.get_children():
+	if root is Control:
+		var control: Control = root as Control
+		if _is_interactive_control(root):
+			control.mouse_filter = Control.MOUSE_FILTER_STOP
+			control.focus_mode = Control.FOCUS_ALL
+		else:
+			control.mouse_filter = Control.MOUSE_FILTER_PASS
+			control.focus_mode = Control.FOCUS_NONE
+	for child: Node in root.get_children():
 		_configure_input_behavior(child)
 
 func _is_interactive_control(node: Node) -> bool:
 	return node is TabContainer or node is BaseButton or node is LineEdit
 
 func _install_helix_ui() -> void:
+	pregame_bits = dna_engine.generate(int(Time.get_unix_time_from_system()))
+
 	helix_game = RichTextLabel.new()
 	helix_game.bbcode_enabled = true
 	helix_game.scroll_active = false
@@ -164,7 +160,7 @@ func _install_helix_ui() -> void:
 	splash_layer.add_child(splash_helix)
 
 	var click_note: Label = Label.new()
-	click_note.text = "Tap / click to begin"
+	click_note.text = "Tap / Click to begin"
 	click_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	click_note.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	click_note.offset_top = -60
@@ -174,13 +170,17 @@ func _install_helix_ui() -> void:
 
 	splash_layer.gui_input.connect(_on_splash_input)
 	tabs.visible = false
+	_render_helix()
 
 func _on_splash_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
-		splash_layer.hide()
-		tabs.visible = true
-		_focus_main_input()
+		_activate_game_ui()
 	elif event is InputEventScreenTouch and event.pressed:
-		splash_layer.hide()
-		tabs.visible = true
-		_focus_main_input()
+		_activate_game_ui()
+
+func _activate_game_ui() -> void:
+	splash_started = true
+	splash_layer.hide()
+	tabs.visible = true
+	_render_helix()
+	_focus_main_input()

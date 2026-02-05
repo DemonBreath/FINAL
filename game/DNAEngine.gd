@@ -1,25 +1,41 @@
 extends RefCounted
 class_name DNAEngine
 
-const DNA_LENGTH := 160
+const DNA_LENGTH: int = 160
 
-func generate(seed: int) -> String:
+func generate(seed: int) -> PackedInt32Array:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed
-	var bits: String = ""
-	for _i in range(DNA_LENGTH):
-		bits += str(rng.randi_range(0, 1))
+	var bits: PackedInt32Array = PackedInt32Array()
+	var index: int = 0
+	while index < DNA_LENGTH:
+		bits.append(rng.randi_range(0, 1))
+		index += 1
 	return bits
 
-func mutate_bit(dna_bits: String, mutated_indices: Array[int], seed: int, condition_name: String) -> Dictionary:
-	if dna_bits.is_empty() or mutated_indices.size() >= dna_bits.length():
-		return {"dna_bits": dna_bits, "index": -1}
-	var pick: int = abs(int(hash("%s:%d:%d" % [condition_name, seed, mutated_indices.size()]))) % dna_bits.length()
-	while mutated_indices.has(pick):
-		pick = (pick + 1) % dna_bits.length()
-	var chars: PackedStringArray = dna_bits.split("", false)
-	if chars[pick] == "0":
-		chars[pick] = "1"
-	else:
-		chars[pick] = "0"
-	return {"dna_bits": "".join(chars), "index": pick}
+func generate_from_string(bit_string: String) -> PackedInt32Array:
+	var bits: PackedInt32Array = PackedInt32Array()
+	var index: int = 0
+	while index < bit_string.length():
+		var char_text: String = bit_string.substr(index, 1)
+		bits.append(1 if char_text == "1" else 0)
+		index += 1
+	return bits
+
+func mutate_once(bits: PackedInt32Array, existing_indices: Array[int], seed: int, condition_name: String) -> int:
+	if bits.size() == 0:
+		return -1
+	if existing_indices.size() >= bits.size():
+		return -1
+	var pick: int = int(abs(hash("%s:%d:%d" % [condition_name, seed, existing_indices.size()]))) % bits.size()
+	while existing_indices.has(pick):
+		pick = (pick + 1) % bits.size()
+	var old_value: int = int(bits[pick])
+	bits[pick] = 1 if old_value == 0 else 0
+	return pick
+
+func to_string(bits: PackedInt32Array) -> String:
+	var out: String = ""
+	for bit: int in bits:
+		out += str(bit)
+	return out
