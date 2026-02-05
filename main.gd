@@ -24,6 +24,7 @@ func _ready() -> void:
 
 func _on_submit_pressed() -> void:
 	var command := input.text.strip_edges()
+	output.text += "\n[system received input]"
 	if command.is_empty():
 		return
 	output.append_text("\n> %s" % command)
